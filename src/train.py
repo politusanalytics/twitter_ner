@@ -1,6 +1,6 @@
 import torch
 from transformers import AutoModel, AutoTokenizer, AutoConfig, get_linear_schedule_with_warmup
-from data import get_examples, TransformersData, tokenize_and_align_labels, get_examples_BIO
+from data import get_examples_BIO, TransformersData, tokenize_and_align_labels
 from torch.utils.data import DataLoader
 import numpy as np
 import time
@@ -14,32 +14,34 @@ import sys
 
 # INPUTS
 pretrained_transformers_model = sys.argv[1] # For example: "xlm-roberta-base"
-seed = int(sys.argv[2])
+dataset_name = sys.argv[2] # "milliyet-ner" or "wiki-ann" or "combined"
+seed = int(sys.argv[3])
 
 # MUST SET THESE VALUES
-repo_path = "/path/to/this/repo"
-train_filename = f"{repo_path}/data/train_examples.txt"
-test_filename = f"{repo_path}/data/test_examples.txt"
-# test_filename = f"{repo_path}/data/file_to_predict.txt"
-label_list = ['O', 'B-LOC', 'B-ORG', 'B-PER',
-              'I-LOC', 'I-ORG', 'I-PER'] # IMPORTANT NOTE: Always start with "O". I use 0 as index
-                                         # for "O" label in other parts of this script.
+repo_path = "/home/username/twitter_ner"
+train_filename = f"{repo_path}/data/{dataset_name}/train.txt"
+test_filename = f"{repo_path}/data/{dataset_name}/test.txt"
+
+label_list = ['O', 'B-LOC', 'B-ORG', 'B-PER', 'I-LOC', 'I-ORG', 'I-PER']
 only_test = False # Only perform testing
 predict = False # Predict instead of testing
 only_predict_up_to_max_seq_length = True # If True, does not predict all tokens in the given document
                                          # if its tokenized length exceeds max_seq_length
 max_seq_length = 512
-batch_size = 16 # NOTE: May break if last batch has only one document
+batch_size = 16
 dev_ratio = 0.1
+
+trans_config = AutoConfig.from_pretrained(pretrained_transformers_model)
+has_token_type_ids = trans_config.type_vocab_size > 1
 
 # SETTINGS
 learning_rate = 2e-5
 dev_metric = "f1"
 num_epochs = 10
-dev_set_splitting = "random" # random, or any filename
+dev_set_splitting = f"{repo_path}/data/{dataset_name}/dev.txt"
 use_gpu = True
 device_ids = [4, 5, 6, 7]
-model_path = "{}_{}.pt".format(pretrained_transformers_model.replace("/", "_"), seed)
+model_path = "{}_{}_{}.pt".format(pretrained_transformers_model.replace("/", "_"), dataset_name, seed)
 
 # optional, used in testing
 classifier_path = ""# repo_path + "/models/best_models/classifier_sentence-transformers_paraphrase-xlm-r-multilingual-v1_44.pt"
@@ -50,7 +52,6 @@ if not encoder_path:
     encoder_path =  repo_path + "/models/encoder_" + model_path
 
 
-# Don't change anything below this line
 trans_config = AutoConfig.from_pretrained(pretrained_transformers_model)
 has_token_type_ids = trans_config.type_vocab_size > 1
 
@@ -459,7 +460,7 @@ if __name__ == '__main__':
         with open(repo_path + "/out.json", "w", encoding="utf-8") as g:
             for i, t in enumerate(test):
                 curr_preds = all_example_preds[i]
-                curr_spans = postprocess_tokens_and_labels(t["tokens"], curr_preds)
+                curr_spans = postprocess_labels(t["tokens"], curr_preds)
                 t["prediction"] = curr_spans
                 g.write(json.dumps(t) + "\n")
 

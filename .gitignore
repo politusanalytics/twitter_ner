@@ -1,0 +1,9 @@
+*~
+*.gz
+*.json
+*.pt
+data/milliyet-ner/
+data/wiki-ann/
+data/combined/
+logs/
+*/flert-*/
