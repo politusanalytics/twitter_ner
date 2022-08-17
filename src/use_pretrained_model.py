@@ -1,15 +1,11 @@
 from transformers import AutoModel, AutoTokenizer, AutoConfig
 from data import tokenize_and_align_labels
-from train import postprocess_labels
+from commons import postprocess_labels, MLP
 import numpy as np
 import sys
 import json
 import torch
 import gzip
-
-# Inputs
-input_filename = sys.argv[1]
-output_filename = sys.argv[2]
 
 # Globals
 IDX_TO_LABEL = ['O', 'B-LOC', 'B-ORG', 'B-PER', 'I-LOC', 'I-ORG', 'I-PER']
@@ -18,21 +14,6 @@ PRETRAINED_TRANSFORMERS_MODEL = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 DEVICE = torch.device("cuda")
 BATCHSIZE = 512
 MAX_SEQ_LEN = 128 # more than enough for tweets
-
-class MLP(torch.nn.Module): # only 1 layer
-    def __init__(self, input_size, hidden_size, output_size, dropout=0.1):
-        super(MLP, self).__init__()
-        self.linear1 = torch.nn.Linear(input_size, hidden_size)
-        self.dropout = torch.nn.Dropout(dropout) if dropout else None
-        self.linear2 = torch.nn.Linear(hidden_size, output_size)
-        self.act = torch.nn.GELU()
-
-    def forward(self, x):
-        x = self.act(self.linear1(x))
-        if self.dropout:
-            x = self.dropout(x)
-        x = self.linear2(x)
-        return x
 
 # Load model
 tokenizer = AutoTokenizer.from_pretrained(PRETRAINED_TRANSFORMERS_MODEL)
@@ -89,6 +70,10 @@ def model_predict(batch):
     return preds, token_lengths
 
 if __name__ == "__main__":
+    # Inputs
+    input_filename = sys.argv[1]
+    output_filename = sys.argv[2]
+
     output_file = open(output_filename, "w", encoding="utf-8")
 
     with gzip.open(input_filename, "rt", encoding="utf-8") as input_file:
@@ -119,9 +104,9 @@ if __name__ == "__main__":
                     curr_tokens = curr_d.pop("twt_txt")
 
                     spans = postprocess_labels(curr_tokens, curr_preds)
-                    if spans:
-                        curr_d["entities"] = spans
-                        output_file.write(json.dumps(curr_d) + "\n")
+                    # if spans:
+                    curr_d["entities"] = spans
+                    output_file.write(json.dumps(curr_d) + "\n")
 
                 curr_batch = []
 
@@ -142,8 +127,8 @@ if __name__ == "__main__":
             curr_tokens = curr_d.pop("twt_txt")
 
             spans = postprocess_labels(curr_tokens, curr_preds)
-            if spans:
-                curr_d["entities"] = spans
-                output_file.write(json.dumps(curr_d) + "\n")
+            # if spans:
+            curr_d["entities"] = spans
+            output_file.write(json.dumps(curr_d) + "\n")
 
     output_file.close()

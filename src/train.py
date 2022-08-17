@@ -1,6 +1,7 @@
 import torch
 from transformers import AutoModel, AutoTokenizer, AutoConfig, get_linear_schedule_with_warmup
 from data import get_examples_BIO, TransformersData, tokenize_and_align_labels
+from commons import postprocess_labels, MLP
 from torch.utils.data import DataLoader
 import numpy as np
 import time
@@ -75,21 +76,6 @@ for (i, label) in enumerate(label_list):
 tokenizer = None
 criterion = torch.nn.CrossEntropyLoss(ignore_index=-1)
 
-
-class MLP(torch.nn.Module): # only 1 layer
-    def __init__(self, input_size, hidden_size, output_size, dropout=0.1):
-        super(MLP, self).__init__()
-        self.linear1 = torch.nn.Linear(input_size, hidden_size)
-        self.dropout = torch.nn.Dropout(dropout) if dropout else None
-        self.linear2 = torch.nn.Linear(hidden_size, output_size)
-        self.act = torch.nn.GELU()
-
-    def forward(self, x):
-        x = self.act(self.linear1(x))
-        if self.dropout:
-            x = self.dropout(x)
-        x = self.linear2(x)
-        return x
 
 def get_batches_for_examples(examples, tokenizer, with_label=True):
     all_batches = []
@@ -180,34 +166,6 @@ def test_model(encoder, classifier, batches, org_token_labels=[]):
               "f1": f1}
 
     return result, eval_loss
-
-def postprocess_labels(tokens, token_labels):
-    spans = []
-    prev_token_label = "O"
-    start_idx = 0
-    for token_idx, token_label in enumerate(token_labels):
-        if token_label == "O" and prev_token_label != "O":
-            spans.append([prev_token_label, " ".join(tokens[start_idx:token_idx])])
-            prev_token_label = "O"
-
-        elif token_label.startswith("B-"):
-            if prev_token_label != "O":
-                spans.append([prev_token_label, " ".join(tokens[start_idx:token_idx])])
-
-            start_idx = token_idx
-            prev_token_label = token_label[2:]
-
-        elif token_label.startswith("I-"):
-            if prev_token_label == "O":
-                start_idx = token_idx
-            else:
-                if prev_token_label != token_label[2:]:
-                    spans.append([prev_token_label, " ".join(tokens[start_idx:token_idx])])
-                    start_idx = token_idx
-
-            prev_token_label = token_label[2:]
-
-    return spans
 
 def model_predict(encoder, classifier, examples):
     all_example_preds = []

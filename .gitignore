@@ -2,6 +2,7 @@
 *.gz
 *.json
 *.pt
+*/__pycache__/
 data/milliyet-ner/
 data/wiki-ann/
 data/combined/
