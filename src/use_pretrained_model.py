@@ -10,7 +10,7 @@ import gzip
 # Globals
 IDX_TO_LABEL = ['O', 'B-LOC', 'B-ORG', 'B-PER', 'I-LOC', 'I-ORG', 'I-PER']
 MODEL_NAME = "cardiffnlp_twitter-xlm-roberta-base_combined_42.pt"
-PRETRAINED_TRANSFORMERS_MODEL = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+PRETRAINED_TRANSFORMERS_MODEL = "cardiffnlp/twitter-xlm-roberta-base"
 DEVICE = torch.device("cuda")
 BATCHSIZE = 512
 MAX_SEQ_LEN = 128 # more than enough for tweets
